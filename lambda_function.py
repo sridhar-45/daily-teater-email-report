@@ -384,119 +384,14 @@ def generate_reports():
     print("✅ Reports generated successfully")
     return combined_df, result_df
 
-# ==========================================
-# UPLOAD TO S3
-# ==========================================
 
-def upload_to_s3(combined_df, result_df):
-    """Upload both sheets to S3 as single Excel file"""
-    output = BytesIO()
-    
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        combined_df.to_excel(writer, sheet_name="Individual Report", index=False)
-        result_df.to_excel(writer, sheet_name="Summary Report", index=False)
-    
-    output.seek(0)
-    
-    s3 = boto3.client('s3')
-    bucket_name = os.environ.get('S3_BUCKET', 'your-bucket-name')  # Set in Lambda env
-    file_name = f"TEATER_Report_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    
-    s3.put_object(
-        Bucket=bucket_name,
-        Key=file_name,
-        Body=output.getvalue(),
-        ContentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    
-    print(f"✅ Uploaded to S3: s3://{bucket_name}/{file_name}")
-    return bucket_name, file_name, output
 
-# ==========================================
-# SEND EMAIL VIA SES
-# ==========================================
-
-def send_email_with_attachment(bucket_name, file_name, file_buffer):
-    """Send email with Excel attachment using AWS SES"""
-    
-    ses = boto3.client('ses', region_name=os.environ.get('AWS_REGION', 'ap-south-1'))
-    
-    # Email configuration
-    sender = os.environ.get('SENDER_EMAIL', 'your-verified-email@example.com')
-    recipients = os.environ.get('RECIPIENT_EMAILS', 'recipient@example.com').split(',')
-    subject = f"Daily TEATER Report - {datetime.now().strftime('%d %B %Y')}"
-    
-    # Create message
-    msg = MIMEMultipart()
-    msg['Subject'] = subject
-    msg['From'] = sender
-    msg['To'] = ', '.join(recipients)
-    
-    # Email body
-    body_html = f"""
-    <html>
-    <head></head>
-    <body>
-        <h2>Daily TEATER Usage Report</h2>
-        <p>Dear Team,</p>
-        <p>Please find attached the daily TEATER platform usage report for <strong>{(datetime.now() - timedelta(days=1)).strftime('%d %B %Y')}</strong>.</p>
-        
-        <h3>Report Contents:</h3>
-        <ul>
-            <li><strong>Individual Report:</strong> Detailed metrics for each college</li>
-            <li><strong>Summary Report:</strong> Aggregated usage by module (Teach, Engage, Assess, Track, Analyse, Remediate)</li>
-        </ul>
-        
-        <p>The report has also been uploaded to S3: <code>s3://{bucket_name}/{file_name}</code></p>
-        
-        <p>Best regards,<br>EdWisely Analytics Team</p>
-    </body>
-    </html>
-    """
-    
-    body_text = f"""
-    Daily TEATER Usage Report
-    
-    Dear Team,
-    
-    Please find attached the daily TEATER platform usage report for {(datetime.now() - timedelta(days=1)).strftime('%d %B %Y')}.
-    
-    Report Contents:
-    - Individual Report: Detailed metrics for each college
-    - Summary Report: Aggregated usage by module
-    
-    The report has also been uploaded to S3: s3://{bucket_name}/{file_name}
-    
-    Best regards,
-    EdWisely Analytics Team
-    """
-    
-    msg.attach(MIMEText(body_text, 'plain'))
-    msg.attach(MIMEText(body_html, 'html'))
-    
-    # Attach Excel file
-    attachment = MIMEApplication(file_buffer.getvalue())
-    attachment.add_header('Content-Disposition', 'attachment', filename=file_name)
-    msg.attach(attachment)
-    
-    # Send email
-    try:
-        response = ses.send_raw_email(
-            Source=sender,
-            Destinations=recipients,
-            RawMessage={'Data': msg.as_string()}
-        )
-        print(f"✅ Email sent! Message ID: {response['MessageId']}")
-        return response
-    except Exception as e:
-        print(f"❌ Email sending failed: {str(e)}")
-        raise
 
 # ==========================================
 # LAMBDA HANDLER
 # ==========================================
 
-def lambda_handler(event, context):
+def teater_generation():
     """Main Lambda handler"""
     try:
         print("🚀 Starting TEATER report generation...")
@@ -515,24 +410,9 @@ def lambda_handler(event, context):
             result_df.to_excel(writer, sheet_name="Sheet1", index=False)
             combined_df.to_excel(writer, sheet_name="Sheet2", index=False)
 
-        print("excel file generated successfully")
-            
-        # Upload to S3
-        # bucket_name, file_name, file_buffer = upload_to_s3(combined_df, result_df)
-        
-        # # Send email
-        # send_email_with_attachment(bucket_name, file_name, file_buffer)
-        
+        print("excel file generated successfully")    
         print("✅ Process completed successfully!")
-        
-        # return {
-        #     "statusCode": 200,
-        #     "body": {
-        #         "message": "Report generated and sent successfully",
-        #         "s3_location": f"s3://{bucket_name}/{file_name}",
-        #         "report_date": datetime.now().strftime('%Y-%m-%d')
-        #     }
-        # }
+    
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
@@ -548,4 +428,4 @@ def lambda_handler(event, context):
 
 # For local testing
 if __name__ == "__main__":
-    lambda_handler(None, None)
+    teater_generation()
