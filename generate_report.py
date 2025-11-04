@@ -497,7 +497,7 @@ def excel_to_pivot(result_df, combined_df):
 
     # ✅ Prepare the email
     EMAIL_USER = os.getenv("EMAIL_USER", "sridhar@edwisely.com")
-    EMAIL_PASS = os.getenv("EMAIL_PASS", "your-local-app-password")
+    EMAIL_PASS = os.getenv("EMAIL_PASS", "yzcikxbrmpvvavsb")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
@@ -563,6 +563,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
