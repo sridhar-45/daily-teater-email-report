@@ -428,10 +428,10 @@ def excel_to_pivot(result_df, combined_df):
     pivot_df = clean_df[cols].copy()
 
     # Row total
-    pivot_df["Row_Total"] = pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total"]].sum(axis=1)
+    # pivot_df["Row_Total"] = pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total"]].sum(axis=1)
 
     # Column totals (grand total row)
-    col_totals = pd.DataFrame(pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total", "Row_Total"]].sum()).T
+    col_totals = pd.DataFrame(pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total"]].sum()).T
     col_totals["college_name"] = "Grand Total"
     col_totals = col_totals[["college_name", "teach", "engage", "assess", "track", "analyse", "remediate", "total", "Row_Total"]]
 
@@ -546,6 +546,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
