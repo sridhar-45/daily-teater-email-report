@@ -2,14 +2,15 @@ name: Daily Excel Automation
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Runs daily at 2 AM UTC
-  workflow_dispatch:     # Allows you to run it manually too
+    - cron: '0 2 * * *'  # Runs daily at 2 AM UTC (7:30 AM IST)
+  workflow_dispatch:     # You can also trigger manually
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -17,10 +18,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install pandas openpyxl sqlalchemy boto3
+          pip install -r requirements.txt
 
-      - name: Run automation script
+      - name: Run Automation Script
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: |
           python generate_report.py
