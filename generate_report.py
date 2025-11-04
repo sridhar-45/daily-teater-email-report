@@ -8,27 +8,35 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-# ==========================================
-# DATABASE CONNECTION
-# ==========================================
-DB_USER = "prod-read-user"
-DB_PASS = 'UY8C&"W>&A6I*g$WTCbb50rn'
-DB_HOST = "proddb-read-replica.crhg7zleeuhf.ap-south-1.rds.amazonaws.com"
-DB_PORT = "3306"
-DB_NAME = "edwisely_college"
 
-engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 # ==========================================
-# HELPER FUNCTION: Execute Query
+# LOAD DATABASE CREDENTIALS SECURELY
 # ==========================================
-def execute_query(query):
-    """Execute SQL query and return DataFrame"""
-    try:
-        return pd.read_sql(query, engine)
-    except Exception as e:
-        print(f"Query execution error: {e}")
-        raise
+# Try to get from environment (GitHub Secrets)
+DB_USER = os.getenv("DB_USER", "prod-read-user")
+DB_PASS = os.getenv("DB_PASS", 'UY8C&"W>&A6I*g$WTCbb50rn')
+DB_HOST = os.getenv("DB_HOST", "proddb-read-replica.crhg7zleeuhf.ap-south-1.rds.amazonaws.com")
+DB_PORT = os.getenv("DB_PORT", "3306")
+DB_NAME = os.getenv("DB_NAME", "edwisely_college")
+
+print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
+
+# ==========================================
+# CREATE DATABASE CONNECTION
+# ==========================================
+try:
+    # SQLAlchemy connection string
+    connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    engine = create_engine(connection_string)
+
+    # Test connection
+    with engine.connect() as connection:
+        print("✅ Database connection successful!")
+
+except Exception as e:
+    print("❌ Database connection failed:", e)
+
 
 # ==========================================
 # DATA EXTRACTION QUERIES
@@ -443,28 +451,49 @@ def excel_to_pivot(result_df, combined_df):
     # 📧 Step 3: Send Excel via Email
     # -------------------------------------------
     print("start sending the mail")
+    
+
+    # -------------------------------------------
+    # 📧 Step 3: Send Excel via Email
+    # -------------------------------------------
+    
+    print("📨 Starting email sending process...")
+    
+    # Load email credentials from environment variables (GitHub Secrets)
+    EMAIL_USER = os.getenv("EMAIL_USER", "sridhar@edwisely.com")
+    EMAIL_PASS = os.getenv("EMAIL_PASS", "your-local-app-password")  # Optional fallback for local testing
+    
+    # ✅ Email setup
     msg = EmailMessage()
     msg["Subject"] = "Daily Teater Usage Report"
-    msg["From"] = "sridhar@edwisely.com"
-    msg["To"] = "sridhargoudu7@gmail.com"
-    msg.set_content("Hello,\n\nPlease find attached today's Teater Usage Report (including pivot summary).\n\nRegards,\nAutomated System")
-
-    # Attach Excel file (from memory)
+    msg["From"] = EMAIL_USER
+    msg["To"] = "sridhargoudu7@gmail.com"  # You can add multiple recipients separated by commas
+    
+    msg.set_content(
+        "Hi sir,\n\nPlease find attached today's Teater Usage Report (including pivot summary).\n\nRegards,\nAutomated System"
+    )
+    
+    # ✅ Attach the Excel file (output should be a BytesIO object)
+    output.seek(0)
     msg.add_attachment(
         output.read(),
-        maintype='application',
-        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        maintype="application",
+        subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="OVERALL_TEATER_DAILY_USAGE.xlsx"
     )
-
-    # Send email (use Gmail App Password)
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login("sridhar@edwisely.com", "lmkbtcvmgzaabflh")  # ⚠️ Use App Password, not your Gmail password
-        smtp.send_message(msg)
-
-    print("✅ Email sent successfully with Excel attachment including Pivot Table!")
-
-# ==========================================
+    
+    # ✅ Send email securely using Gmail SMTP
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(EMAIL_USER, EMAIL_PASS)
+            smtp.send_message(msg)
+        print("✅ Email sent successfully!")
+    
+    except Exception as e:
+        print("❌ Failed to send email:", e)
+    
+    
+    # ==========================================
 # LAMBDA HANDLER
 # ==========================================
 
@@ -504,3 +533,4 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
