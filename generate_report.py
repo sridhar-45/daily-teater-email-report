@@ -480,7 +480,8 @@ def excel_to_pivot(result_df, combined_df):
     msg["Subject"] = "Daily Teater Usage Report"
     msg["From"] = EMAIL_USER
     msg["To"] = "sridhargoudu7@gmail.com"  # You can add multiple recipients separated by commas
-    
+    msg['Cc'] = "narsimha@edwisely.com, sridhargoudu143@gmail.com"
+
     msg.set_content(
         "Hi sir,\n\nPlease find attached today's Teater Usage Report (including pivot summary).\n\nRegards,\nAutomated System"
     )
@@ -545,5 +546,6 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
