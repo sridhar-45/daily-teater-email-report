@@ -538,7 +538,7 @@ def excel_to_pivot(result_df, combined_df):
     
             <p>Kindly review the insights presented below:</p>
     
-            {table_html}  <!-- Your dynamic table here -->
+            {styled_html}  <!-- Your dynamic table here -->
     
             <p style="margin-top: 20px;">Warm regards,</p>
             <p>
@@ -623,6 +623,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
