@@ -390,7 +390,12 @@ def generate_reports():
     result_df["total"] = result_df[["teach", "engage", "assess", "track", "analyse", "remediate"]].sum(axis=1)
     result_df = result_df.sort_values(by="total", ascending=False).reset_index(drop=True)
     result_df.insert(0, "S.No", range(1, len(result_df) + 1))
-    
+
+    # ✅ FIX: Convert all numeric columns to integers
+    numeric_columns = ["teach", "engage", "assess", "track", "analyse", "remediate", "total"]
+    for col in numeric_columns:
+        result_df[col] = result_df[col].astype(int)
+
     # Add total row
     total_row = {
         "S.No": "Total",
@@ -610,6 +615,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
