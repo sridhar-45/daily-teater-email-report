@@ -554,8 +554,9 @@ def excel_to_pivot(result_df, combined_df):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
     msg["From"] = "sridhar@edwisely.com"
-    msg["To"] = "yash@edwisely.com"
-    msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    msg["To"] = "srihdargoudu7@gmail.com"
+    # msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    msg["Cc"] = "janakiraokusumuru@gmail.com, sridhargoudu143@gmail.com"
 
     # Attach the HTML body
     msg.attach(MIMEText(html_content, "html"))
@@ -615,6 +616,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
