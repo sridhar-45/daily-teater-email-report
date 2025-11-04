@@ -2,12 +2,13 @@ name: Daily Excel Automation
 
 on:
   schedule:
-    - cron: '10 14 * * *'  # ⏰ Runs daily at 3:00 AM UTC = 8:30 AM IST
-  workflow_dispatch:     # Manual trigger (for testing)
+    - cron: '30 14 * * *'   # ⏰ Runs daily at 8:00 PM IST
+  workflow_dispatch:         # Manual trigger (for testing)
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
