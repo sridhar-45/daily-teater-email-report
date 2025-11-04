@@ -385,7 +385,84 @@ def generate_reports():
     return combined_df, result_df
 
 
+# ==========================================
+# excel to pivot table
+# ==========================================
+def excel_to_pivot(result_df, combined_df):
 
+    import pandas as pd
+    from io import BytesIO
+    import smtplib
+    from email.message import EmailMessage
+
+    # 🟢 Assume your DataFrames are ready
+    # combined_df and result_df already exist
+
+    # -------------------------------------------
+    # 🧮 Step 1: Create Pivot-style Summary
+    # -------------------------------------------
+    clean_df = result_df[result_df["college_name"].notna()].copy()
+    clean_df = clean_df[~clean_df["college_name"].str.contains("Total", case=False, na=False)]
+
+    cols = ["college_name", "teach", "engage", "assess", "track", "analyse", "remediate", "total"]
+    pivot_df = clean_df[cols].copy()
+
+    # Row total
+    pivot_df["Row_Total"] = pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total"]].sum(axis=1)
+
+    # Column totals (grand total row)
+    col_totals = pd.DataFrame(pivot_df[["teach", "engage", "assess", "track", "analyse", "remediate", "total", "Row_Total"]].sum()).T
+    col_totals["college_name"] = "Grand Total"
+    col_totals = col_totals[["college_name", "teach", "engage", "assess", "track", "analyse", "remediate", "total", "Row_Total"]]
+
+    # Final pivot with totals
+    final_pivot = pd.concat([pivot_df, col_totals], ignore_index=True)
+
+    # -------------------------------------------
+    # 🧾 Step 2: Create In-Memory Excel File
+    # -------------------------------------------
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        result_df.to_excel(writer, sheet_name="Usage_Data", index=False)
+        combined_df.to_excel(writer, sheet_name="Individual_Data", index=False)
+        final_pivot.to_excel(writer, sheet_name="Pivot_Summary", index=False)
+
+        # Optional styling
+        workbook = writer.book
+        worksheet = writer.sheets["Pivot_Summary"]
+        worksheet.autofilter(0, 0, final_pivot.shape[0], final_pivot.shape[1] - 1)
+        worksheet.freeze_panes(1, 1)
+        worksheet.set_column("A:A", 45)  # College Name
+        worksheet.set_column("B:I", 12)
+
+    # Reset pointer for reading
+    output.seek(0)
+
+    # -------------------------------------------
+    # 📧 Step 3: Send Excel via Email
+    # -------------------------------------------
+    print("start sending the mail")
+    msg = EmailMessage()
+    msg["Subject"] = "Daily Teater Usage Report"
+    msg["From"] = "sridhar@edwisely.com"
+    msg["To"] = "sridhargoudu7@gmail.com"
+    msg.set_content("Hello,\n\nPlease find attached today's Teater Usage Report (including pivot summary).\n\nRegards,\nAutomated System")
+
+    # Attach Excel file (from memory)
+    msg.add_attachment(
+        output.read(),
+        maintype='application',
+        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename="OVERALL_TEATER_DAILY_USAGE.xlsx"
+    )
+
+    # Send email (use Gmail App Password)
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login("sridhar@edwisely.com", "lmkbtcvmgzaabflh")  # ⚠️ Use App Password, not your Gmail password
+        smtp.send_message(msg)
+
+    print("✅ Email sent successfully with Excel attachment including Pivot Table!")
 
 # ==========================================
 # LAMBDA HANDLER
@@ -403,16 +480,14 @@ def teater_generation():
 
 
         print("generating the output into excel sheets")
-        # Generating the excel files....
-        combined_df.to_excel("teater_individual_output.xlsx", index = False)
-        result_df.to_excel("teater_usage_output.xlsx", index = False)
-        with pd.ExcelWriter("OVERALL_TEATER_DAILY_USAGE.xlsx") as writer:
-            result_df.to_excel(writer, sheet_name="Sheet1", index=False)
-            combined_df.to_excel(writer, sheet_name="Sheet2", index=False)
+        excel_to_pivot(result_df, combined_df)
+        print("pivot_table converted successfully")
+        
 
-        print("excel file generated successfully")    
+        #sending to mail
         print("✅ Process completed successfully!")
     
+
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")
