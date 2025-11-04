@@ -21,7 +21,6 @@ DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "edwisely_college")
 
 print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
-
 # ==========================================
 # CREATE DATABASE CONNECTION
 # ==========================================
@@ -36,6 +35,19 @@ try:
 
 except Exception as e:
     print("❌ Database connection failed:", e)
+
+
+
+# ==========================================
+# HELPER FUNCTION: Execute Query
+# ==========================================
+def execute_query(query):
+    """Execute SQL query and return DataFrame"""
+    try:
+        return pd.read_sql(query, engine)
+    except Exception as e:
+        print(f"Query execution error: {e}")
+        raise
 
 
 # ==========================================
@@ -533,4 +545,5 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
