@@ -2,7 +2,7 @@ name: Daily Excel Automation
 
 on:
   schedule:
-    - cron: '30 4 * * *'   # 8:00 AM IST (2:30 AM UTC)
+    - cron: '10 5 * * *'   # 8:00 AM IST
   workflow_dispatch:        # Manual trigger
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
       
       - name: Upload logs on failure
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # ✅ Updated to v4
         with:
           name: error-logs
           path: ./*.log
