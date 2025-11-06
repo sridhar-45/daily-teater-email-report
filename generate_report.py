@@ -15,11 +15,11 @@ from email.message import EmailMessage
 # LOAD DATABASE CREDENTIALS SECURELY
 # ==========================================
 # Try to get from environment (GitHub Secrets)
-DB_USER = os.getenv("DB_USER", "prod-read-user")
-DB_PASS = os.getenv("DB_PASS", 'UY8C&"W>&A6I*g$WTCbb50rn')
-DB_HOST = os.getenv("DB_HOST", "proddb-read-replica.crhg7zleeuhf.ap-south-1.rds.amazonaws.com")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "edwisely_college")
+DB_USER = os.getenv("DB_USER")
+DB_PASS = os.getenv("DB_PASS")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
 
 print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
 # ==========================================
@@ -560,10 +560,10 @@ def excel_to_pivot(result_df, combined_df):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
     msg["From"] = "sridhar@edwisely.com"
-    msg["To"] = "yash@edwisely.com"
-    # msg["To"] = "sridhargoudu7@gmail.com"
-    msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
-    # msg["Cc"] = "janakiraokusumuru@gmail.com, sridhargoudu143@gmail.com"
+    # msg["To"] = "yash@edwisely.com"
+    msg["To"] = "sridhargoudu7@gmail.com"
+    # msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    msg["Cc"] = "janakiraokusumuru@gmail.com, sridhargoudu143@gmail.com"
 
     # Attach the HTML body
     msg.attach(MIMEText(html_content, "html"))
@@ -623,6 +623,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
