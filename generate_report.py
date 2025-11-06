@@ -28,7 +28,13 @@ print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
 try:
     # SQLAlchemy connection string
     connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    engine = create_engine(connection_string)
+    # engine = create_engine(connection_string)
+    engine = create_engine(
+        connection_string,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        connect_args={"connect_timeout": 20}
+        )
 
     # Test connection
     with engine.connect() as connection:
@@ -617,6 +623,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
