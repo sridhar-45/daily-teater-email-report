@@ -554,16 +554,16 @@ def excel_to_pivot(result_df, combined_df):
     """
 
     # ✅ Prepare the email
-    EMAIL_USER = os.getenv("EMAIL_USER", "sridhar@edwisely.com")
-    EMAIL_PASS = os.getenv("EMAIL_PASS", "yzcikxbrmpvvavsb")
+    EMAIL_USER = os.getenv("EMAIL_USER")
+    EMAIL_PASS = os.getenv("EMAIL_PASS")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
     msg["From"] = "sridhar@edwisely.com"
-    msg["To"] = "yash@edwisely.com"
-    # msg["To"] = "sridhargoudu7@gmail.com"
-    msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
-    # msg["Cc"] = "janakiraokusumuru@gmail.com, sridhargoudu143@gmail.com"
+    # msg["To"] = "yash@edwisely.com"
+    msg["To"] = "sridhargoudu7@gmail.com"
+    # msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    msg["Cc"] = "sridhargoudu143@gmail.com"
 
     # Attach the HTML body
     msg.attach(MIMEText(html_content, "html"))
@@ -623,6 +623,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
