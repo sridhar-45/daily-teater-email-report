@@ -21,6 +21,7 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 
+
 print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
 # ==========================================
 # CREATE DATABASE CONNECTION
@@ -61,28 +62,30 @@ def execute_query(query):
 # DATA EXTRACTION QUERIES
 # ==========================================
 
-def get_base_colleges():
-    query = """
-    SELECT DISTINCT    
-        c.id as college_id,
-        c.college_name,
-        ay.name 
-    FROM college_academic_years cay 
-    JOIN academic_years ay ON ay.id = cay.academic_year_id 
-    JOIN regulation_batch_mapping rbm ON rbm.id = cay.regulation_batch_mapping_id 
-    JOIN regulation_mappings rm ON rm.id = rbm.regulation_mapping_id
-    JOIN college_university_degree_department_new cuddn ON cuddn.id = rm.cudd_id 
-    JOIN college c ON cuddn.college_id = c.id
-    WHERE ay.current_academic_year = 1
-    """
-    return execute_query(query)
+# def get_base_colleges():
+#     query = """
+#     SELECT DISTINCT    
+#         c.id as college_id,
+#         c.college_name,
+#         ay.name 
+#     FROM college_academic_years cay 
+#     JOIN academic_years ay ON ay.id = cay.academic_year_id 
+#     JOIN regulation_batch_mapping rbm ON rbm.id = cay.regulation_batch_mapping_id 
+#     JOIN regulation_mappings rm ON rm.id = rbm.regulation_mapping_id
+#     JOIN college_university_degree_department_new cuddn ON cuddn.id = rm.cudd_id 
+#     JOIN college c ON cuddn.college_id = c.id
+#     WHERE ay.current_academic_year = 1
+#     """
+#     return execute_query(query)
+
+
 
 def get_teach_data():
     """Get TEACH module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     # Live Assignments
-    live_assignment_df = execute_query("""
+    attendance_df = execute_query("""
         SELECT 
             c.id AS college_id,
             c.college_name,
@@ -90,10 +93,13 @@ def get_teach_data():
         FROM college c
         LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
         LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
+            AND can.dummy = 0
         LEFT JOIN faculty_class_hours fch ON fch.faculty_id = can.id
-            AND fch.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+            AND fch.entry_date is not null
+            AND fch.entry_date BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
             AND CONCAT(CURDATE(), ' 08:00:00')
-        GROUP BY c.id, c.college_name
+        where c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77) 
+        GROUP BY c.id
     """)
     
     # Hook Count
@@ -109,7 +115,9 @@ def get_teach_data():
         LEFT JOIN co_pilot_hook_search cphs ON cphs.college_account_co_pilot_search_id = cacps.id
             AND cphs.date_of_search BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
             AND CONCAT(CURDATE(), ' 08:00:00')
-        GROUP BY c.id, c.college_name
+        where can.dummy = 0 
+        and  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77) 
+        GROUP BY c.id
     """)
     
     # Teach Studio
@@ -117,227 +125,430 @@ def get_teach_data():
         SELECT 
             c.id AS college_id,
             c.college_name,
-            COUNT(DISTINCT cphse.id) AS teach_studio_count
+            COUNT(DISTINCT cplp.id) AS teach_studio_count
         FROM college c
         LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
         LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-        LEFT JOIN college_account_co_pilot_search cacps ON cacps.college_account_id = can.id
-        LEFT JOIN co_pilot_hook_search cphs ON cphs.college_account_co_pilot_search_id = cacps.id
-        LEFT JOIN co_pilot_hook_search_elaborate cphse ON cphse.co_pilot_hook_search_id = cphs.id
-            AND cphse.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+        LEFT JOIN co_pilot_lesson_plans cplp
+            on cplp.college_account_id = can.id
+            AND cplp.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
             AND CONCAT(CURDATE(), ' 08:00:00')
-        GROUP BY c.id, c.college_name
+        WHERE can.dummy = 0 AND  
+        c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77) 
+        GROUP BY c.id
     """)
     
     # Merge all
-    final_df = (base_df
-        .merge(live_assignment_df, on=["college_id", "college_name"], how="left")
+    final_df = (
+        attendance_df
         .merge(hook_count_df, on=["college_id", "college_name"], how="left")
         .merge(teach_studio_df, on=["college_id", "college_name"], how="left"))
     
     return final_df.fillna(0)
 
+
+    
 def get_engage_data():
     """Get ENGAGE module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     queries = {
-        "questionnaire_live_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT ql.id) AS questionnaire_live_count
-            FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN questionnaire_live ql ON ql.college_account_id = can.id
-                AND ql.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+        "live_assignment_count": """
+                SELECT 
+                    c.id AS college_id, 
+                    c.college_name, 
+                    COUNT(DISTINCT ql.id) AS live_assignment_count
+                FROM college c
+                LEFT JOIN college_university_degree_department_new cuddn 
+                    ON cuddn.college_id = c.id
+                LEFT JOIN college_account_new can 
+                    ON can.college_university_degree_department_id = cuddn.id
+                    AND can.dummy = 0   -- moved from WHERE
+                LEFT JOIN questionnaire_live ql 
+                    ON ql.college_account_id = can.id
+                    AND ql.start_time IS NOT NULL   -- moved from WHERE
+                    AND ql.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                           AND CONCAT(CURDATE(), ' 08:00:00')
+                WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+                GROUP BY c.id
         """,
+        
         "live_survey_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT ls.id) AS live_survey_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT ls.id) AS survey_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN live_surveys ls ON ls.college_account_id = can.id
-                AND ls.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN live_surveys ls
+                ON ls.college_account_id = can.id
+                AND ls.start_time IS NOT NULL   -- moved from WHERE
+                AND ls.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
-        "notifications_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT n.id) AS notifications_count
+
+         "notifications_count": """
+              SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT n.id) AS notify_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN notifications n ON n.college_account_id = can.id
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN notifications n
+                ON n.college_account_id = can.id
                 AND n.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
-        "video_conference_live_classes_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT vc.id) AS video_conference_live_classes_count
+
+
+         "live_class_count": """
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT vc.id) AS live_class_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN video_conference vc ON vc.college_account_id = can.id
-                AND vc.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN video_conference vc
+                ON vc.college_account_id = can.id
+                AND vc.start_time is not null
+                AND vc.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+
+        
+        "case_study_count": """
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT csa.id) AS live_class_count
+            FROM college c
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN case_study_assignments csa
+                ON csa.college_account_id = can.id
+                AND csa.start_date is not null
+                AND csa.start_date BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
+        """,
+
+        
         "academic_projects_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT ap.id) AS academic_projects_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT ap.id) AS projects_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN academic_projects ap ON ap.college_account_id = can.id
-                AND ap.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN academic_projects ap
+                ON ap.college_account_id = can.id
+                AND ap.start_time is not null
+                AND ap.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+
+        
         "arena_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT wc.id) AS arena_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT wc.id) AS arena_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN weekly_challenge wc ON wc.college_account_id = can.id
-                AND wc.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN weekly_challenge wc
+                ON wc.college_account_id = can.id
+                AND wc.start_date is not null
+                AND wc.start_date BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """
     }
     
-    final_df = base_df
+    final_df = execute_query(queries["live_assignment_count"])
     for metric, query in queries.items():
+        if metric == "live_assignment_count": # skip
+            continue
+            
         df = execute_query(query)
         final_df = final_df.merge(df, on=["college_id", "college_name"], how="left")
-    
+        
     return final_df.fillna(0)
+
+
 
 def get_assess_data():
     """Get ASSESS module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     queries = {
         "objective_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT q.id) AS objective_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT q.id) AS objective_count
             FROM college c
-            JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN questionnaire q ON q.college_account_id = can.id
-                AND q.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN questionnaire q
+                ON q.college_account_id = can.id
+                AND q.start_time is not null 
+                AND q.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+
+        
         "subjective_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT qs.id) AS subjective_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT qs.id) AS subjective_count
             FROM college c
-            JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN questionnaire_subjective qs ON qs.college_account_id = can.id
-                AND qs.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN questionnaire_subjective qs
+                ON qs.college_account_id = can.id
+                AND qs.start_time is not null and qs.is_assignment = 0
+                AND qs.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+        
         "coding_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT ct.id) AS coding_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT ct.id) AS coding_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN coding_test ct ON ct.college_account_id = can.id
-                AND ct.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), " 08:00:00"), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), " 08:00:00")
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN coding_test ct
+                ON ct.college_account_id = can.id
+                AND ct.start_time is not null
+                AND ct.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
+        """,
+        
+         "assignment_count": """
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT qs.id) AS assignment_count
+            FROM college c
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN questionnaire_subjective qs
+                ON qs.college_account_id = can.id
+                AND qs.start_time is not null and qs.is_assignment = 1
+                AND qs.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """
+        
     }
     
-    final_df = base_df
+    final_df = execute_query(queries["objective_count"])
     for metric, query in queries.items():
+        if metric == "objective_count": # skip aready present in dataframe...
+            continue
+            
         df = execute_query(query)
         final_df = final_df.merge(df, on=["college_id", "college_name"], how="left")
-    
+
     return final_df.fillna(0)
 
+
+    
 def get_track_data():
     """Get TRACK module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     queries = {
-        "track_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT casssat.college_id) AS track_count
+        "regular_feedback_count": """
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT f.id) AS regular_feedback_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN college_account_subject_section_stats_activity_tracker casssat ON casssat.faculty_id = can.id
-                AND casssat.faculty_mapping_start_date BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN college_department_section_new cdsn
+                ON cdsn.college_university_degree_department_id = cuddn.id
+            LEFT JOIN feedback f
+                ON f.college_department_section_id = cdsn.id
+                AND f.created_at is not null
+                AND f.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+
+        
         "semester_feedback_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT sf.id) AS semester_feedback_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT sf.id) AS semester_feedback_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN semester_feedback sf ON sf.faculty_id = can.id
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN semester_feedback sf
+                ON sf.faculty_id = can.id
+                AND sf.created_at is not null
                 AND sf.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """,
+
+            
         "unit_feedback_count": """
-            SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT ff.id) AS unit_feedback_count
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT ff.id) AS unit_feedback_count
             FROM college c
-            LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-            LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-            LEFT JOIN faculty_feedback ff ON ff.college_account_id = can.id
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN faculty_feedback ff
+                ON ff.college_account_id = can.id
+                AND ff.created_at is not null
                 AND ff.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-                AND CONCAT(CURDATE(), ' 08:00:00')
-            GROUP BY c.id, c.college_name
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """
     }
     
-    final_df = base_df
+    final_df = execute_query(queries["regular_feedback_count"])
     for metric, query in queries.items():
+        if metric == "regular_feedback_count": # skip aready present in dataframe...
+            continue
+            
         df = execute_query(query)
         final_df = final_df.merge(df, on=["college_id", "college_name"], how="left")
-    
+
     return final_df.fillna(0)
 
+
+
+    
 def get_analyse_data():
     """Get ANALYSE module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     query = """
-        SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT sfq.id) AS analyse_count
+        SELECT 
+            c.id AS college_id,
+            c.college_name,
+            0 AS total_analyse
         FROM college c
-        LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-        LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-        LEFT JOIN swoc_faculty_questionnaire sfq ON sfq.college_account_id = can.id
-            AND sfq.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-            AND CONCAT(CURDATE(), ' 08:00:00')
-        GROUP BY c.id, c.college_name
+        WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+        group by c.id;
     """
     
-    df = execute_query(query)
-    final_df = base_df.merge(df, on=["college_id", "college_name"], how="left")
+    # df = execute_query(query)
+    # final_df = base_df.merge(df, on=["college_id", "college_name"], how="left")
+    final_df = execute_query(query)
     return final_df.fillna(0)
 
+
+
+
+    
 def get_remediate_data():
     """Get REMEDIATE module data"""
-    base_df = get_base_colleges()
+    # base_df = get_base_colleges()
     
     query = """
-        SELECT c.id AS college_id, c.college_name, COUNT(DISTINCT qrp.id) AS remediate_count
+        SELECT 
+            c.id AS college_id,
+            c.college_name,
+            COUNT(CONCAT(q.id, qrp.id)) AS remediate_count
         FROM college c
-        LEFT JOIN college_university_degree_department_new cuddn ON cuddn.college_id = c.id
-        LEFT JOIN college_account_new can ON can.college_university_degree_department_id = cuddn.id
-        LEFT JOIN questionnaire q ON q.college_account_id = can.id
-        LEFT JOIN questionnaire_remedial_path qrp ON qrp.questionnaire_id = q.id
-            AND qrp.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
-            AND CONCAT(CURDATE(), ' 08:00:00')
-        GROUP BY c.id, c.college_name
+        LEFT JOIN college_university_degree_department_new cuddn 
+            ON cuddn.college_id = c.id
+        LEFT JOIN college_account_new can
+            ON can.college_university_degree_department_id = cuddn.id
+            AND can.dummy = 0
+        LEFT JOIN questionnaire q 
+            ON q.college_account_id = can.id
+            AND q.remedial_path = 1 
+            AND q.start_time IS NOT NULL
+            AND q.start_time BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+         LEFT JOIN questionnaire_remedial_path qrp
+            ON qrp.questionnaire_id = q.id
+        WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+        GROUP BY c.id
     """
     
-    df = execute_query(query)
-    final_df = base_df.merge(df, on=["college_id", "college_name"], how="left")
+    # df = execute_query(query)
+    # final_df = base_df.merge(df, on=["college_id", "college_name"], how="left")
+    final_df = execute_query(query)
     return final_df.fillna(0)
 
+
+    
 # ==========================================
 # GENERATE REPORTS
 # ==========================================
@@ -353,6 +564,7 @@ def generate_reports():
     track_df = get_track_data()
     analyse_df = get_analyse_data()
     remediate_df = get_remediate_data()
+
     
     # Remove 'name' column if exists
     dfs = [teach_df, engage_df, assess_df, track_df, analyse_df, remediate_df]
@@ -556,6 +768,7 @@ def excel_to_pivot(result_df, combined_df):
     # ✅ Prepare the email
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASS = os.getenv("EMAIL_PASS")
+   
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
@@ -595,7 +808,7 @@ def teater_generation():
         # Generate reports
         combined_df, result_df = generate_reports()
 
-        print('combine df ', combined_df, result_df)
+        # print('combine df ', combined_df, result_df)
 
 
         print("generating the output into excel sheets")
@@ -623,7 +836,6 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
-
 
 
 
