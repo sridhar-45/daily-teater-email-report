@@ -238,7 +238,7 @@ def get_engage_data():
             SELECT 
                 c.id AS college_id, 
                 c.college_name, 
-                COUNT(DISTINCT csa.id) AS live_class_count
+                COUNT(DISTINCT csa.id) AS case_study_count
             FROM college c
             LEFT JOIN college_university_degree_department_new cuddn 
                 ON cuddn.college_id = c.id
@@ -836,6 +836,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
