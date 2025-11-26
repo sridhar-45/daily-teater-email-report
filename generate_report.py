@@ -294,7 +294,28 @@ def get_engage_data():
                                        AND CONCAT(CURDATE(), ' 08:00:00')
             WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
             GROUP BY c.id
+        """,
+
+         "gocode_count": """
+            SELECT 
+                c.id AS college_id, 
+                c.college_name, 
+                COUNT(DISTINCT cactqs.question_id) AS gocode_count
+            FROM college c
+            LEFT JOIN college_university_degree_department_new cuddn 
+                ON cuddn.college_id = c.id
+            LEFT JOIN college_account_new can 
+                ON can.college_university_degree_department_id = cuddn.id
+                AND can.dummy = 0   -- moved from WHERE
+            LEFT JOIN college_account_coding_track_question_submissions cactqs
+                ON cactqa.college_account_id = can.id
+                AND cactqa.created_at is not null
+                AND wc.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                                       AND CONCAT(CURDATE(), ' 08:00:00')
+            WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
+            GROUP BY c.id
         """
+        
     }
     
     final_df = execute_query(queries["live_assignment_count"])
@@ -773,9 +794,9 @@ def excel_to_pivot(result_df, combined_df):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "📈 Daily TEATER Usage Report"
     msg["From"] = "sridhar@edwisely.com"
-    msg["To"] = "yash@edwisely.com"
-    # msg["To"] = "sridhargoudu7@gmail.com"
-    msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    # msg["To"] = "yash@edwisely.com"
+    msg["To"] = "sridhargoudu7@gmail.com"
+    # msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
     # msg["Cc"] = "sridhargoudu143@gmail.com"
 
     # Attach the HTML body
@@ -836,6 +857,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
