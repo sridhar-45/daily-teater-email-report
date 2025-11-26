@@ -310,7 +310,7 @@ def get_engage_data():
             LEFT JOIN college_account_coding_track_question_submissions cactqs
                 ON cactqs.college_account_id = can.id
                 AND cactqs.created_at is not null
-                AND cactqa.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+                AND cactqs.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
                                        AND CONCAT(CURDATE(), ' 08:00:00')
             WHERE c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
             GROUP BY c.id
@@ -857,6 +857,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
