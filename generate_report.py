@@ -796,7 +796,7 @@ def excel_to_pivot(result_df, combined_df):
     msg["From"] = "sridhar@edwisely.com"
     msg["To"] = "yash@edwisely.com"
     # msg["To"] = "sridhargoudu7@gmail.com"
-    msg["Cc"] = "narsimha@edwisely.com,prahalya@edwisely.com"
+    msg["Cc"] = "prahalya@edwisely.com"
     # msg["Cc"] = "sridhargoudu143@gmail.com"
 
     # Attach the HTML body
@@ -857,6 +857,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
