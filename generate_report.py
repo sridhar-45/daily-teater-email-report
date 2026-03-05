@@ -436,22 +436,20 @@ def get_track_data():
     
     queries = {
         "regular_feedback_count": """
-            SELECT 
+           SELECT 
                 c.id AS college_id, 
                 c.college_name, 
-                COUNT(DISTINCT f.id) AS regular_feedback_count
+                COUNT(DISTINCT s.id) AS regular_feedback_count
             FROM college c
             LEFT JOIN college_university_degree_department_new cuddn 
                 ON cuddn.college_id = c.id
             LEFT JOIN college_account_new can 
                 ON can.college_university_degree_department_id = cuddn.id
                 AND can.dummy = 0   -- moved from WHERE
-            LEFT JOIN college_department_section_new cdsn
-                ON cdsn.college_university_degree_department_id = cuddn.id
-            LEFT JOIN feedback f
-                ON f.college_department_section_id = cdsn.id
-                AND f.created_at is not null
-                AND f.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
+            LEFT JOIN survey s 
+                ON s.faculty_id = can.id
+                AND s.created_at  is not null
+                AND s.created_at BETWEEN DATE_SUB(CONCAT(CURDATE(), ' 08:00:00'), INTERVAL 1 DAY)
                                        AND CONCAT(CURDATE(), ' 08:00:00')
             WHERE  c.id IN (9,21,27,28,29,32,36,40,41,64,65,66,67,68,69,70,71,72,73,74,75,76,77)   
             GROUP BY c.id
@@ -857,6 +855,7 @@ def teater_generation():
 # For local testing
 if __name__ == "__main__":
     teater_generation()
+
 
 
 
