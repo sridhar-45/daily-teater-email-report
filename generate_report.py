@@ -11,7 +11,7 @@ from email.mime.application import MIMEApplication
 import smtplib
 from email.message import EmailMessage
 
-# ==========================================
+# ===========================================
 # LOAD DATABASE CREDENTIALS SECURELY
 # ==========================================
 # Try to get from environment (GitHub Secrets)
