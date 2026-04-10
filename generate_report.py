@@ -23,7 +23,7 @@ DB_NAME = os.getenv("DB_NAME")
 
 
 print(f"Connecting to database: {DB_NAME} at {DB_HOST}")
-# ==========================================
+# ===============================================
 # CREATE DATABASE CONNECTION
 # ==========================================
 try:
